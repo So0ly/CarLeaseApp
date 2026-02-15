@@ -1,5 +1,6 @@
 package com.carlease.app.services;
 
+import com.carlease.app.exceptions.CarTypeNotFoundException;
 import com.carlease.app.models.Car;
 import com.carlease.app.models.CarTypes;
 import com.carlease.app.repos.CarRepo;
@@ -26,7 +27,7 @@ public class CarServiceImpl implements CarService{
         try {
             carType = CarTypes.valueOf(carTypeStr.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid car type");
+            throw new CarTypeNotFoundException("Car type not found: " + carTypeStr);
         }
         return carRepo.findCarByCarType(carType);
     }
