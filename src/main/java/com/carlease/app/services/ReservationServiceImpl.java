@@ -1,5 +1,9 @@
 package com.carlease.app.services;
 
+import com.carlease.app.exceptions.CarNotAvailableException;
+import com.carlease.app.exceptions.CarTypeNotFoundException;
+import com.carlease.app.exceptions.DateInputParseException;
+import com.carlease.app.exceptions.IncorrectTimePeriodException;
 import com.carlease.app.models.Car;
 import com.carlease.app.models.Reservation;
 import com.carlease.app.models.User;
@@ -27,31 +31,25 @@ public class ReservationServiceImpl implements ReservationService {
         this.userService = userService;
     }
 
-    public Reservation createReservation(String carType, String startDateStr, String endDateStr) throws DateTimeParseException {
+    public Reservation createReservation(String carType, String startDateStr, String endDateStr) {
         User currentUser = userService.findCurrentUser();
-        Car selectedCar = carService.findCarByCarType(carType).orElse(null);
-        if (selectedCar == null) {
-            LOGGER.error("{} car type not found", carType);
-            return null;
-        }
-
+        Car selectedCar = carService.findCarByCarType(carType).orElseThrow(
+                () -> new CarTypeNotFoundException("Car type not found: " + carType));
         LocalDate startDate;
         LocalDate endDate;
         try {
             startDate = LocalDate.parse(startDateStr);
             endDate = LocalDate.parse(endDateStr);
         } catch (DateTimeParseException e) {
-            LOGGER.error("Invalid date format");
-            return null;
+            throw new DateInputParseException("Invalid date format. Expected format: yyyy-MM-dd, received: "
+                    + startDateStr + " " + endDateStr);
         }
         if (startDate.isAfter(endDate)) {
-            LOGGER.error("Start date must be before end date");
-            return null;
+            throw new IncorrectTimePeriodException("Start date must be before end date");
         }
         LOGGER.debug("Creating reservation for car: {}, from {} to {}", selectedCar, startDate, endDate);
         if (!reservationRepo.findAvailableCarsInPeriod(startDate, endDate).contains(selectedCar)) {
-            LOGGER.error("No cars of {} type available", selectedCar.getCarType());
-            return null;
+            throw new CarNotAvailableException("No cars of " + selectedCar.getCarType() + " type available");
         }
         Reservation reservation = new Reservation(selectedCar, currentUser, startDate, endDate);
         reservationRepo.saveAndFlush(reservation);
